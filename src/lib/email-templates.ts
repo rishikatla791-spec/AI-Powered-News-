@@ -26,6 +26,19 @@ export function magicLinkEmail(url: string) {
   return { subject, html, text };
 }
 
+export function verifyEmail(url: string) {
+  const subject = "Confirm your email for Lede";
+  const html = frame(
+    subject,
+    `<p style="font-size:17px;line-height:1.5;margin:0 0 20px">Confirm this address so Lede can send you the daily brief. The link expires in 24 hours.</p>
+     <a href="${esc(url)}" style="display:inline-block;background:#1d2025;color:#f6f6f3;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Confirm email</a>
+     <p style="font-size:13px;line-height:1.5;color:#5f646d;margin:24px 0 0">If you didn't create a Lede account, you can ignore this email.</p>`,
+    `Sent by Lede · <a href="${siteUrl()}/privacy" style="color:#5f646d">Privacy</a>`,
+  );
+  const text = `Confirm your email for Lede (link expires in 24 hours):\n${url}\n\nIf you didn't create a Lede account, ignore this email.`;
+  return { subject, html, text };
+}
+
 export function passwordResetEmail(url: string) {
   const subject = "Reset your Lede password";
   const html = frame(

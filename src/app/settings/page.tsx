@@ -25,6 +25,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         settings={{ briefEnabled: res.data.settings.briefEnabled, briefHour: res.data.settings.briefHour, timezone: res.data.settings.timezone }}
         follows={res.data.state.follows}
         emailAvailable={hasEmail()}
+        email={user.email}
+        emailVerified={user.emailVerified}
         isAdmin={user.isAdmin}
       />
     </div>

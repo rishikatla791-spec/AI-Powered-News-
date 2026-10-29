@@ -3,11 +3,7 @@ import { getDb } from "@/lib/db";
 import { jobRuns, user, userSettings } from "@/lib/db/schema";
 import { hasEmail } from "@/lib/env";
 import { sendEmail } from "@/lib/email";
-import { briefEmail } from "@/lib/email-templates";
-import { unsubscribeUrl } from "@/lib/brief-token";
-import { getFrontPage } from "@/lib/services/stories";
-import { getPersonalFeed } from "@/lib/services/reader";
-import { formatDate } from "@/lib/format";
+import { briefTopStories, composeBrief } from "@/lib/services/brief";
 
 /**
  * Sends the daily brief to readers whose chosen hour (in their own time zone)
@@ -26,7 +22,7 @@ const recipients = await db
   .where(and(eq(userSettings.briefEnabled, true), eq(user.emailVerified, true)));
 
 const now = new Date();
-const top = (await getFrontPage({ limit: 20 })).stories.filter((s) => s.outletCount > 1);
+const top = await briefTopStories();
 let sent = 0;
 let failed = 0;
 for (const r of recipients) {
@@ -34,16 +30,9 @@ for (const r of recipients) {
   if (localHour !== r.hour) continue;
   if (r.last && now.getTime() - r.last.getTime() < 20 * 3600_000) continue;
   try {
-    const personal = await getPersonalFeed(r.id);
-    const seen = new Set<string>();
-    const items = [...personal.slice(0, 3), ...top]
-      .filter((s) => (seen.has(s.id) ? false : (seen.add(s.id), true)))
-      .slice(0, 8)
-      .map((s) => ({ headline: s.headline, slug: s.slug, keyPoint: s.keyPoint, outletCount: s.outletCount }));
-    if (items.length === 0) continue;
-    const unsub = unsubscribeUrl(r.id);
-    const { subject, html, text } = briefEmail(items, formatDate(now, { weekday: "long", day: "numeric", month: "long" }), unsub);
-    await sendEmail({ to: r.email, subject, html, text, headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
+    const brief = await composeBrief(r.id, top, now);
+    if (!brief) continue;
+    await sendEmail({ to: r.email, ...brief });
     await db.update(userSettings).set({ lastBriefSentAt: now }).where(eq(userSettings.userId, r.id));
     sent++;
   } catch (err) {

@@ -32,17 +32,43 @@ export function SettingsPanel({
   settings,
   follows: initialFollows,
   emailAvailable,
+  email,
+  emailVerified,
   isAdmin,
 }: {
   settings: { briefEnabled: boolean; briefHour: number; timezone: string };
   follows: Follow[];
   emailAvailable: boolean;
+  email: string;
+  emailVerified: boolean;
   isAdmin: boolean;
 }) {
   const router = useRouter();
   const [follows, setFollows] = useState(initialFollows);
   const [brief, setBrief] = useState(settings);
   const [briefSaved, setBriefSaved] = useState(false);
+  const [delivery, setDelivery] = useState<{ state: "idle" | "busy" | "done" | "error"; text: string }>({ state: "idle", text: "" });
+
+  async function sendVerification() {
+    setDelivery({ state: "busy", text: "" });
+    const { error } = await authClient.sendVerificationEmail({ email, callbackURL: "/settings#brief" });
+    setDelivery(
+      error
+        ? { state: "error", text: error.status === 429 ? "Too many attempts. Wait a minute, then try again." : "The email couldn’t be sent. Try again in a moment." }
+        : { state: "done", text: `We sent a link to ${email}. Open it to confirm your address.` },
+    );
+  }
+
+  async function sendTestBrief() {
+    setDelivery({ state: "busy", text: "" });
+    const res = await fetch("/api/v1/me/brief", { method: "POST" }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { error?: string } | null;
+    setDelivery(
+      res?.ok
+        ? { state: "done", text: `Sent to ${email}. It usually arrives within a minute.` }
+        : { state: "error", text: data?.error ?? "The brief couldn’t be sent. Try again in a moment." },
+    );
+  }
   const [historyCleared, setHistoryCleared] = useState(false);
 
   const topicState = (slug: string): "follow" | "mute" | "none" => {
@@ -162,6 +188,33 @@ export function SettingsPanel({
           </label>
         </div>
         <p className="meta mt-3 min-h-5" aria-live="polite">{briefSaved ? "Saved" : ""}</p>
+
+        {emailAvailable && (
+          <div className="mt-4 max-w-[520px] border-t border-rule pt-5">
+            {emailVerified ? (
+              <>
+                <p className="text-[0.9375rem] text-ink-2">
+                  Briefs go to <span className="font-medium text-ink">{email}</span>. See what one looks like now.
+                </p>
+                <button type="button" onClick={sendTestBrief} disabled={delivery.state === "busy"} className="btn btn-secondary mt-3">
+                  {delivery.state === "busy" ? "Sending…" : "Send a test brief now"}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-[0.9375rem] text-ink-2">
+                  Confirm <span className="font-medium text-ink">{email}</span> before Lede can send you a brief.
+                </p>
+                <button type="button" onClick={sendVerification} disabled={delivery.state === "busy"} className="btn btn-secondary mt-3">
+                  {delivery.state === "busy" ? "Sending…" : "Email me a confirmation link"}
+                </button>
+              </>
+            )}
+            <p role="status" className={`mt-3 min-h-5 text-[0.875rem] ${delivery.state === "error" ? "text-danger" : "text-ink-muted"}`}>
+              {delivery.text}
+            </p>
+          </div>
+        )}
       </Section>
 
       <Section id="data" title="Your data" description="Download everything Lede stores about you, or remove it.">
