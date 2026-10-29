@@ -1,6 +1,6 @@
 import { and, asc, cosineDistance, desc, eq, gt, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db";
-import { articles, stories } from "@/lib/db/schema";
+import { articles, stories, storyEntities } from "@/lib/db/schema";
 import { embed } from "@/lib/ai";
 import { shortId, slugify } from "@/lib/text";
 
@@ -130,6 +130,93 @@ export async function clusterPending(db: Db, opts: { useEmbeddings: boolean; lim
     await refreshStoryCounts(db, [...touched]);
   }
   return { attached, created };
+}
+
+function unit(v: number[]): number[] {
+  const n = Math.sqrt(v.reduce((s, x) => s + x * x, 0)) || 1;
+  return v.map((x) => x / n);
+}
+const dot = (a: number[], b: number[]) => a.reduce((s, x, i) => s + x * (b[i] ?? 0), 0);
+
+/**
+ * Members (in publication order) that satisfy the grouping rule against the ones kept before them:
+ * the same test `clusterPending` applies when an article first joins a story.
+ */
+export function coherentMembers<T extends { embedding: number[] }>(members: T[]): T[] {
+  const [first, ...others] = members;
+  if (!first) return [];
+  const kept = [first];
+  const keptUnits = [unit(first.embedding)];
+  let sum = [...keptUnits[0]!];
+  for (const m of others) {
+    const u = unit(m.embedding);
+    const link = Math.max(...keptUnits.map((k) => dot(u, k)));
+    if (link >= EMBED_THRESHOLD && dot(u, unit(sum)) >= CENTROID_THRESHOLD) {
+      kept.push(m);
+      keptUnits.push(u);
+      sum = sum.map((x, i) => x + (u[i] ?? 0));
+    }
+  }
+  return kept;
+}
+
+/**
+ * Re-checks recent multi-report stories against the grouping rule and detaches reports that don't belong,
+ * so they re-group on their own. This repairs stories built under an older, looser rule and any later drift.
+ * A story that loses reports gets its original headline back and its summary cleared, so it is
+ * re-summarised from the reports that remain.
+ */
+export async function repairStories(db: Db, limit = 60): Promise<{ checked: number; detached: number }> {
+  const candidates = await db
+    .select({ id: stories.id })
+    .from(stories)
+    .where(
+      and(
+        gt(stories.articleCount, 2),
+        isNotNull(stories.centroid),
+        gt(stories.lastUpdatedAt, sql`now() - make_interval(hours => ${WINDOW_HOURS})`),
+      ),
+    )
+    .orderBy(desc(stories.articleCount))
+    .limit(limit);
+
+  let detached = 0;
+  const changed: string[] = [];
+  try {
+    for (const { id } of candidates) {
+      const rows = await db
+        .select({ id: articles.id, title: articles.title, excerpt: articles.excerpt, embedding: articles.embedding })
+        .from(articles)
+        .where(and(eq(articles.storyId, id), isNotNull(articles.embedding)))
+        .orderBy(asc(articles.publishedAt));
+      const members = rows.filter((r): r is typeof r & { embedding: number[] } => r.embedding !== null);
+      const kept = coherentMembers(members);
+      const anchor = kept[0];
+      if (!anchor || kept.length === members.length) continue;
+      const keptIds = new Set(kept.map((k) => k.id));
+      const drop = members.filter((m) => !keptIds.has(m.id)).map((m) => m.id);
+
+      await db.update(articles).set({ storyId: null }).where(inArray(articles.id, drop));
+      await db
+        .update(stories)
+        .set({
+          headline: anchor.title,
+          dek: anchor.excerpt,
+          centroid: unit(kept.reduce((s, k) => s.map((x, i) => x + (k.embedding[i] ?? 0)), new Array<number>(anchor.embedding.length).fill(0))),
+          summary: null,
+          summaryModel: null,
+          summaryGeneratedAt: null,
+          summarizedArticleCount: 0,
+        })
+        .where(eq(stories.id, id));
+      await db.delete(storyEntities).where(eq(storyEntities.storyId, id));
+      detached += drop.length;
+      changed.push(id);
+    }
+  } finally {
+    await refreshStoryCounts(db, changed);
+  }
+  return { checked: candidates.length, detached };
 }
 
 export async function refreshStoryCounts(db: Db, ids: string[]) {

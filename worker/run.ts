@@ -4,13 +4,13 @@ import { getDb } from "@/lib/db";
 import { jobRuns, sources, type JobStep } from "@/lib/db/schema";
 import { env, hasEmbeddings, hasLLM, siteUrl } from "@/lib/env";
 import { fetchSource } from "@/lib/pipeline/fetch";
-import { cleanup, clusterPending, embedPending, rankStories } from "@/lib/pipeline/cluster";
+import { cleanup, clusterPending, embedPending, rankStories, repairStories } from "@/lib/pipeline/cluster";
 import { summarizePending } from "@/lib/pipeline/summarize";
 import { seed } from "./seed";
 
 /**
  * One ingestion run (GitHub Actions, every 30 minutes):
- * seed → fetch → embed → cluster → rank → summarize → rank → cleanup → revalidate.
+ * seed → fetch → embed → repair → cluster → rank → summarize → rank → cleanup → revalidate.
  * Each step is idempotent; anything unfinished is picked up next run.
  */
 const BUDGET_MS = 18 * 60 * 1000;
@@ -62,6 +62,11 @@ const useEmbeddings = hasEmbeddings();
 await step("embed", async () =>
   useEmbeddings ? { processed: await embedPending(db) } : { processed: 0, note: "no embedding provider; lexical clustering" },
 );
+await step("repair", async () => {
+  if (!useEmbeddings) return { processed: 0, note: "needs embeddings" };
+  const r = await repairStories(db);
+  return { processed: r.detached, note: `${r.checked} stories checked, ${r.detached} reports detached` };
+});
 await step("cluster", async () => {
   const r = await clusterPending(db, { useEmbeddings });
   return { processed: r.attached + r.created, note: `${r.created} new stories, ${r.attached} attached` };

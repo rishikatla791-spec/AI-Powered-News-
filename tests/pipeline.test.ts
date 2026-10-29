@@ -42,7 +42,7 @@ const { getDb } = await import("@/lib/db");
 const schema = await import("@/lib/db/schema");
 const { seed } = await import("../worker/seed");
 const { storeCandidates, parseFeedItems } = await import("@/lib/pipeline/fetch");
-const { clusterPending, rankStories, cleanup } = await import("@/lib/pipeline/cluster");
+const { clusterPending, rankStories, cleanup, refreshStoryCounts, repairStories } = await import("@/lib/pipeline/cluster");
 const { summarizePending } = await import("@/lib/pipeline/summarize");
 const { getFrontPage, getStory } = await import("@/lib/services/stories");
 const { searchAll } = await import("@/lib/services/search");
@@ -140,5 +140,24 @@ describe("ingestion pipeline", () => {
     const storyOf = (url: string) => rows.find((r) => r.url === url)?.storyId;
     expect(storyOf(items[0]!.url)).toBe(storyOf(items[1]!.url));
     expect(storyOf(items[2]!.url)).not.toBe(storyOf(items[0]!.url));
+
+    // A story built under the old, looser rule: the off-topic report was attached and summarised with it.
+    const crashStory = storyOf(items[0]!.url)!;
+    await db.update(schema.articles).set({ storyId: crashStory }).where(eq(schema.articles.url, items[2]!.url));
+    await refreshStoryCounts(db, [crashStory]);
+    await db
+      .update(schema.stories)
+      .set({ headline: "Train crashes in Spain and Ukraine", summary: { whatWeKnow: [], differences: [], citedArticleIds: [] } as never })
+      .where(eq(schema.stories.id, crashStory));
+
+    const r = await repairStories(db);
+    expect(r.detached).toBe(1);
+    const [repaired] = await db.select().from(schema.stories).where(eq(schema.stories.id, crashStory));
+    expect(repaired?.articleCount).toBe(2);
+    expect(repaired?.summary).toBeNull();
+    expect(repaired?.headline).toBe(items[0]!.title);
+    const [stray] = await db.select({ storyId: schema.articles.storyId }).from(schema.articles).where(eq(schema.articles.url, items[2]!.url));
+    expect(stray?.storyId).toBeNull();
+    expect(await repairStories(db)).toEqual({ checked: 0, detached: 0 });
   });
 });
