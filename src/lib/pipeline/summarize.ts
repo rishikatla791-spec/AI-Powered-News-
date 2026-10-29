@@ -152,7 +152,8 @@ async function linkThread(db: Db, story: Story, entityIds: string[]) {
   await db.update(threads).set({ lastUpdatedAt: new Date() }).where(eq(threads.id, threadId));
 }
 
-export async function summarizePending(db: Db, perRun = 25): Promise<{ done: number; failed: number; note?: string }> {
+/** `deadline` (epoch ms): stop starting new summaries after it, so the run ends inside its time budget. */
+export async function summarizePending(db: Db, perRun = 25, deadline = Infinity): Promise<{ done: number; failed: number; note?: string }> {
   const remaining = dailyBudget() - (await requestsToday());
   // Keep a reserve of the daily budget for readers using Ask.
   const allowance = Math.min(perRun, Math.floor(remaining - dailyBudget() * 0.25));
@@ -161,6 +162,7 @@ export async function summarizePending(db: Db, perRun = 25): Promise<{ done: num
   let done = 0;
   let failed = 0;
   for (const s of list) {
+    if (Date.now() > deadline) return { done, failed, note: `stopped at time budget; ${list.length - done - failed} left for next run` };
     try {
       if (await summarizeStory(db, s)) done++;
       else failed++;

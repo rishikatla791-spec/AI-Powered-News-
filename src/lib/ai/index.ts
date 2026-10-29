@@ -19,20 +19,23 @@ export class AiUnavailableError extends Error {
   }
 }
 
+/** Per-request cap. Without it a stalled provider call can hold the worker until the CI job is killed. */
+const REQUEST_TIMEOUT_MS = 60_000;
+
 let gemini: GoogleGenAI | null = null;
 let groq: Groq | null = null;
 
 function geminiClient() {
   const key = env().GEMINI_API_KEY;
   if (!key) return null;
-  gemini ??= new GoogleGenAI({ apiKey: key });
+  gemini ??= new GoogleGenAI({ apiKey: key, httpOptions: { timeout: REQUEST_TIMEOUT_MS } });
   return gemini;
 }
 
 function groqClient() {
   const key = env().GROQ_API_KEY;
   if (!key) return null;
-  groq ??= new Groq({ apiKey: key });
+  groq ??= new Groq({ apiKey: key, timeout: REQUEST_TIMEOUT_MS, maxRetries: 1 });
   return groq;
 }
 
@@ -42,10 +45,11 @@ const embedModel = () => env().GEMINI_EMBED_MODEL ?? "gemini-embedding-001";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Transient provider errors worth retrying: rate limits and "model overloaded" (503). */
 function isRateLimit(err: unknown): boolean {
   const msg = String((err as { message?: string })?.message ?? err);
   const status = (err as { status?: number })?.status;
-  return status === 429 || /429|RESOURCE_EXHAUSTED|rate limit|quota/i.test(msg);
+  return status === 429 || status === 503 || /429|503|RESOURCE_EXHAUSTED|UNAVAILABLE|rate limit|quota|high demand/i.test(msg);
 }
 
 async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {

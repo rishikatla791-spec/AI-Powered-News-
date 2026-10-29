@@ -72,7 +72,7 @@ await step("rank", async () => {
 });
 await step("summarize", async () => {
   if (!hasLLM()) return { processed: 0, note: "no LLM provider configured" };
-  const r = await summarizePending(db);
+  const r = await summarizePending(db, 25, started + BUDGET_MS);
   return { processed: r.done, failed: r.failed, note: r.note };
 });
 await step("rank-final", async () => {

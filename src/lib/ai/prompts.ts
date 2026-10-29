@@ -12,6 +12,8 @@ export type PromptArticle = {
 };
 
 const citations = z.array(z.number().int().positive()).min(1);
+/** Models sometimes return a few items too many; keep the first `n` rather than discard a good summary. */
+const atMost = <T>(n: number) => (items: T[]) => items.slice(0, n);
 
 export const storySummarySchema = z.object({
   headline: z.string().min(8).max(120),
@@ -20,20 +22,20 @@ export const storySummarySchema = z.object({
   whatWeKnow: z
     .array(z.object({ text: z.string().min(8).max(400), citations }))
     .min(1)
-    .max(6),
+    .transform(atMost(6)),
   differences: z
     .array(
       z.object({
         point: z.string().min(4).max(200),
-        positions: z.array(z.object({ text: z.string().min(4).max(300), citations })).min(2).max(4),
+        positions: z.array(z.object({ text: z.string().min(4).max(300), citations })).min(2).transform(atMost(4)),
       }),
     )
-    .max(3)
-    .default([]),
+    .default([])
+    .transform(atMost(3)),
   entities: z
     .array(z.object({ name: z.string().min(2).max(80), type: z.enum(["person", "org", "place", "event"]) }))
-    .max(10)
-    .default([]),
+    .default([])
+    .transform(atMost(10)),
 });
 export type StorySummaryOutput = z.infer<typeof storySummarySchema>;
 
