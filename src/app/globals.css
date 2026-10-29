@@ -1,0 +1,363 @@
+@import "tailwindcss";
+
+/*
+ * Lede design tokens — "the editor's desk".
+ * Graphite ink on a cool proof-paper white. One accent: the editor's blue pencil,
+ * used for citations, links and annotation. A highlighter yellow marks the source
+ * a reader is checking. Ochre marks stories still developing.
+ */
+:root {
+  --paper: #f6f6f3;
+  --paper-raised: #ffffff;
+  --paper-sunk: #ececE7;
+  --ink: #1d2025;
+  --ink-2: #3c4048;
+  --ink-muted: #5f646d;
+  --rule: #d9dad4;
+  --rule-strong: #b9bbb3;
+  --pencil: #2745c0;
+  --pencil-soft: #e3e8fb;
+  --highlight: #f7e48b;
+  --developing: #a8641a;
+  --danger: #b4331f;
+  --focus: #2745c0;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #17191d;
+    --paper-raised: #1f2227;
+    --paper-sunk: #121417;
+    --ink: #eceae4;
+    --ink-2: #cfccc4;
+    --ink-muted: #9da0a6;
+    --rule: #2f3238;
+    --rule-strong: #474a51;
+    --pencil: #8fa5ff;
+    --pencil-soft: #232b48;
+    --highlight: #5c4f17;
+    --developing: #e0a050;
+    --danger: #f08a77;
+    --focus: #8fa5ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #17191d;
+  --paper-raised: #1f2227;
+  --paper-sunk: #121417;
+  --ink: #eceae4;
+  --ink-2: #cfccc4;
+  --ink-muted: #9da0a6;
+  --rule: #2f3238;
+  --rule-strong: #474a51;
+  --pencil: #8fa5ff;
+  --pencil-soft: #232b48;
+  --highlight: #5c4f17;
+  --developing: #e0a050;
+  --danger: #f08a77;
+  --focus: #8fa5ff;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-paper-sunk: var(--paper-sunk);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-muted: var(--ink-muted);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-pencil: var(--pencil);
+  --color-pencil-soft: var(--pencil-soft);
+  --color-highlight: var(--highlight);
+  --color-developing: var(--developing);
+  --color-danger: var(--danger);
+
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-move: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: calc(100% * var(--reader-scale, 1));
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    min-height: 100dvh;
+  }
+  ::selection {
+    background: var(--highlight);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  img {
+    max-width: 100%;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
+
+/* ───── Type system ─────
+ * Headlines: Instrument Sans at narrow width (wdth 78), heavy, tight.
+ * Reading: Newsreader text optical size, generous leading.
+ * Scale ratio ≈ 1.25 on small screens, ≈ 1.333 on wide.
+ */
+@layer components {
+  .hed {
+    font-family: var(--font-sans);
+    font-variation-settings: "wdth" 78;
+    font-weight: 680;
+    letter-spacing: -0.012em;
+    line-height: 1.06;
+  }
+  .hed-xl {
+    font-size: clamp(2.25rem, 1.4rem + 3.6vw, 4.75rem);
+    line-height: 0.98;
+    letter-spacing: -0.022em;
+    font-weight: 700;
+  }
+  .hed-lg {
+    font-size: clamp(1.75rem, 1.3rem + 1.8vw, 2.875rem);
+    line-height: 1.02;
+  }
+  .hed-md {
+    font-size: clamp(1.3rem, 1.1rem + 0.7vw, 1.625rem);
+    line-height: 1.1;
+  }
+  .hed-sm {
+    font-size: 1.125rem;
+    line-height: 1.18;
+    font-weight: 640;
+  }
+  .prose-read {
+    font-family: var(--font-serif);
+    font-optical-sizing: auto;
+    font-size: clamp(1.0625rem, 1rem + 0.25vw, 1.2rem);
+    line-height: 1.62;
+    color: var(--ink-2);
+  }
+  .dek {
+    font-family: var(--font-serif);
+    font-size: clamp(1.0625rem, 0.98rem + 0.4vw, 1.3rem);
+    line-height: 1.45;
+    color: var(--ink-2);
+  }
+  .meta {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: var(--ink-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Links that underline from the left on hover. */
+  .link-draw {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    transition: background-size 320ms var(--ease-out);
+  }
+  .link-draw:hover,
+  .link-draw:focus-visible {
+    background-size: 100% 1px;
+  }
+  .story-link:hover .hed,
+  .story-link:focus-visible .hed {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.14em;
+    text-decoration-color: var(--pencil);
+  }
+
+  /* Highlighter: the source being checked. */
+  .highlighter {
+    background-image: linear-gradient(transparent 12%, var(--highlight) 12%, var(--highlight) 88%, transparent 88%);
+    background-size: 0% 100%;
+    background-repeat: no-repeat;
+    transition: background-size 420ms var(--ease-out);
+  }
+  .highlighter[data-active="true"] {
+    background-size: 100% 100%;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 2.5rem;
+    padding: 0 1rem;
+    border-radius: 6px;
+    font-size: 0.9375rem;
+    font-weight: 560;
+    transition:
+      background-color 160ms var(--ease-out),
+      color 160ms var(--ease-out),
+      border-color 160ms var(--ease-out),
+      transform 120ms var(--ease-out);
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .btn-primary:hover {
+    background: var(--ink-2);
+  }
+  .btn-secondary {
+    border: 1px solid var(--rule-strong);
+    color: var(--ink);
+    background: transparent;
+  }
+  .btn-secondary:hover {
+    border-color: var(--ink);
+  }
+  .btn-quiet {
+    color: var(--ink-2);
+    padding: 0 0.625rem;
+  }
+  .btn-quiet:hover {
+    background: var(--paper-sunk);
+  }
+
+  .field {
+    height: 2.75rem;
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid var(--rule-strong);
+    background: var(--paper-raised);
+    padding: 0 0.875rem;
+    font-size: 1rem;
+    color: var(--ink);
+    transition: border-color 160ms var(--ease-out);
+  }
+  .field::placeholder {
+    color: var(--ink-muted);
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--pencil);
+    box-shadow: 0 0 0 3px var(--pencil-soft);
+  }
+
+  .shell {
+    width: 100%;
+    max-width: 1320px;
+    margin-inline: auto;
+    padding-inline: 16px;
+  }
+  @media (min-width: 768px) {
+    .shell {
+      padding-inline: 32px;
+    }
+  }
+  @media (min-width: 1280px) {
+    .shell {
+      padding-inline: 48px;
+    }
+  }
+
+  .img-tone {
+    filter: saturate(0.88) contrast(1.02);
+    transition:
+      filter 600ms var(--ease-out),
+      transform 900ms var(--ease-out);
+  }
+  .story-link:hover .img-tone {
+    filter: none;
+    transform: scale(1.015);
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, var(--paper-sunk) 0%, var(--rule) 50%, var(--paper-sunk) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+    border-radius: 4px;
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* View transitions: quick cross-fade with a small rise. */
+::view-transition-old(root) {
+  animation: 180ms var(--ease-out) both vt-out;
+}
+::view-transition-new(root) {
+  animation: 320ms var(--ease-out) both vt-in;
+}
+@keyframes vt-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
