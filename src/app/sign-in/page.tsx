@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Sign in", robots: { index: false } }
 
 const PERKS = [
   { title: "Saved stories", body: "Keep a story and come back when it has moved on. Saved stories are never deleted by cleanup." },
-  { title: "Following", body: "Follow sections, people and places. Their latest stories open your front page, under For you." },
+  { title: "Following", body: "Follow sections, people and places. Their latest stories open your front page, under From what you follow." },
   { title: "Daily brief", body: "One email at the hour you choose, with the stories most outlets covered. Unsubscribe in one click." },
 ];
 
