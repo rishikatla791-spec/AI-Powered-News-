@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import * as Popover from "@radix-ui/react-popover";
 import { AnimatePresence, motion } from "motion/react";
 import { Bookmark, BookmarkCheck, Flag, Link2, Pause, Volume2 } from "lucide-react";
-import { patchMe, useMe } from "@/lib/client/use-me";
+import { patchMe, refreshMe, useMe } from "@/lib/client/use-me";
 import { useClientValue } from "@/lib/client/use-client-value";
 
 export function SaveButton({ storyId }: { storyId: string }) {
@@ -68,11 +68,13 @@ export function FollowButton({ type, slug, label }: { type: "topic" | "entity" |
         ? [...m.follows.filter((f) => !(f.targetType === type && f.targetSlug === slug)), { targetType: type, targetSlug: slug, muted: false }]
         : m.follows.filter((f) => !(f.targetType === type && f.targetSlug === slug)),
     }));
-    await fetch("/api/v1/me/follows", {
+    const res = await fetch("/api/v1/me/follows", {
       method: next ? "POST" : "DELETE",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ targetType: type, targetSlug: slug }),
     }).catch(() => null);
+    // Never show "Following" for a follow that wasn't saved: reload the real state from the server.
+    if (!res?.ok) await refreshMe();
   }
 
   return (

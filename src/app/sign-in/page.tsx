@@ -23,6 +23,8 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   const { next } = await searchParams;
   const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
   const stats = hasAuth() ? await liveStats() : null;
+  // Only promise what this deployment can do: the brief needs an email provider.
+  const perks = hasEmail() ? PERKS : PERKS.filter((p) => p.title !== "Daily brief");
 
   return (
     <div className="shell py-10 md:py-16 lg:py-24">
@@ -32,7 +34,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
           <p className="dek mt-4 max-w-[46ch]">Reading never needs an account. An account remembers what you care about.</p>
 
           <ul className="mt-10 max-w-[52ch] border-t border-rule">
-            {PERKS.map((p) => (
+            {perks.map((p) => (
               <li key={p.title} className="grid gap-1 border-b border-rule py-5 sm:grid-cols-[10rem_1fr] sm:gap-6">
                 <span className="hed hed-sm">{p.title}</span>
                 <span className="text-[0.9375rem] leading-relaxed text-ink-2">{p.body}</span>

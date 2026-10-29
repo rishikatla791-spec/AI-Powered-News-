@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { authClient } from "@/lib/client/auth-client";
+import { refreshMe } from "@/lib/client/use-me";
 
 type Mode = "sign-in" | "sign-up" | "link";
 
@@ -73,6 +74,9 @@ export function SignInForm({ next, google, email: emailEnabled }: { next: string
       setBusy(false);
       return;
     }
+    // The signed-in state is cached client-side for the whole visit; reload it before leaving,
+    // otherwise the masthead and Follow buttons keep showing the signed-out state.
+    await refreshMe();
     router.replace(next);
     router.refresh();
   }
