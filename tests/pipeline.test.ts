@@ -143,11 +143,16 @@ describe("ingestion pipeline", () => {
 
     // A story built under the old, looser rule: the off-topic report was attached and summarised with it.
     const crashStory = storyOf(items[0]!.url)!;
-    await db.update(schema.articles).set({ storyId: crashStory }).where(eq(schema.articles.url, items[2]!.url));
+    const strayImage = "https://img.test/dnipro.jpg";
+    await db.update(schema.articles).set({ storyId: crashStory, imageUrl: strayImage }).where(eq(schema.articles.url, items[2]!.url));
     await refreshStoryCounts(db, [crashStory]);
     await db
       .update(schema.stories)
-      .set({ headline: "Train crashes in Spain and Ukraine", summary: { whatWeKnow: [], differences: [], citedArticleIds: [] } as never })
+      .set({
+        headline: "Train crashes in Spain and Ukraine",
+        leadImageUrl: strayImage,
+        summary: { whatWeKnow: [], differences: [], citedArticleIds: [] } as never,
+      })
       .where(eq(schema.stories.id, crashStory));
 
     const r = await repairStories(db);
@@ -156,6 +161,7 @@ describe("ingestion pipeline", () => {
     expect(repaired?.articleCount).toBe(2);
     expect(repaired?.summary).toBeNull();
     expect(repaired?.headline).toBe(items[0]!.title);
+    expect(repaired?.leadImageUrl).not.toBe(strayImage);
     const [stray] = await db.select({ storyId: schema.articles.storyId }).from(schema.articles).where(eq(schema.articles.url, items[2]!.url));
     expect(stray?.storyId).toBeNull();
     expect(await repairStories(db)).toEqual({ checked: 0, detached: 0 });

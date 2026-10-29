@@ -10,7 +10,7 @@ Live: https://ai-powered-news.vercel.app
 | Story page | "What we know" with numbered citations, "Where reports differ", a timeline of how coverage spread, every original report |
 | Ask the news | Questions answered only from the last 14 days of collected reports, with citations, and an honest "the reports don't cover this" |
 | Search | Keyword + semantic (pgvector) hybrid search with Reciprocal Rank Fusion |
-| Accounts | Magic-link email or Google; follow sections and people, save stories, daily brief email, data export, account deletion |
+| Accounts | Email and password, magic link or Google; follow sections and people, save stories, daily brief email, data export, account deletion |
 | Admin | Ingestion runs, feed health, AI usage against the free-tier budget, reported problems |
 
 Running cost: **₹0/month.** Everything runs on free tiers.
@@ -29,7 +29,7 @@ GitHub Actions cron (every 30 min) ─ worker: fetch → embed → group → ran
 
 - **Frontend**: Next.js 16 App Router, React 19, Tailwind CSS v4, Motion, GSAP ScrollTrigger, Lenis, Radix, cmdk
 - **Backend**: Next.js route handlers, Drizzle ORM, PostgreSQL (Neon) with `pgvector`, `pg_trgm` and `tsvector` search
-- **Auth**: Better Auth (magic link + Google)
+- **Auth**: Better Auth (email + password, magic link, Google)
 - **AI**: Gemini free tier (summaries, embeddings, Ask), Groq free tier as fallback; daily request budget enforced in code
 - **Worker**: TypeScript CLI run by GitHub Actions; every step is idempotent and resumable
 - **Email**: Resend (magic links, daily brief with one-click unsubscribe)
@@ -85,9 +85,10 @@ Checks: `npm run typecheck && npm run lint && npm test && npm run build`. The te
 
 4. **GitHub** (repo → Settings → Secrets and variables → Actions):
    - Secrets: `DATABASE_URL`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `GUARDIAN_API_KEY` (optional), `NYT_API_KEY` (optional), `REVALIDATE_SECRET`, `RESEND_API_KEY`, `BETTER_AUTH_SECRET`
-   - Variables: `NEXT_PUBLIC_SITE_URL`, and `BRIEF_ENABLED=true` once email works
+   - Variables: `NEXT_PUBLIC_SITE_URL`, `GEMINI_MODEL` (`gemini-3.8-flash`), `GROQ_MODEL` (`openai/gpt-oss-120b`), `GEMINI_EMBED_MODEL` (`gemini-embedding-001`), and `BRIEF_ENABLED=true` once email works
 5. Run **Actions → Ingest news → Run workflow** once. It applies migrations, seeds sources and fills the first edition. After that it runs every 30 minutes.
-6. Before launch: replace `hello@example.com` in `public/.well-known/security.txt`, and have someone qualified review `/privacy` and `/terms` (they are marked as drafts).
+   Keep exactly one Vercel project connected to this repo. A second project (for example one imported from the dashboard with the "Other" framework preset) serves only `public/` and answers 404 for every page.
+6. Before launch: set your contact address in `public/.well-known/security.txt`, and have someone qualified review `/privacy` and `/terms` (they are marked as drafts). Password reset and magic-link emails need `RESEND_API_KEY`; without it the sign-in page offers email + password only.
 
 **Custom domain**: GitHub Student Developer Pack includes a free domain for a year (Namecheap `.me` or get.tech `.tech`). Add it in Vercel → Domains, then update `NEXT_PUBLIC_SITE_URL`.
 

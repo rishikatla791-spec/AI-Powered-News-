@@ -203,6 +203,7 @@ export async function repairStories(db: Db, limit = 60): Promise<{ checked: numb
           headline: anchor.title,
           dek: anchor.excerpt,
           centroid: unit(kept.reduce((s, k) => s.map((x, i) => x + (k.embedding[i] ?? 0)), new Array<number>(anchor.embedding.length).fill(0))),
+          leadImageUrl: null,
           summary: null,
           summaryModel: null,
           summaryGeneratedAt: null,
@@ -216,6 +217,15 @@ export async function repairStories(db: Db, limit = 60): Promise<{ checked: numb
   } finally {
     await refreshStoryCounts(db, changed);
   }
+  // A story must never show a photo from a report it no longer contains (e.g. after an earlier repair).
+  await db.execute(sql`
+    UPDATE stories s SET lead_image_url = (
+      SELECT a.image_url FROM articles a
+      WHERE a.story_id = s.id AND a.image_url IS NOT NULL
+      ORDER BY a.published_at DESC LIMIT 1)
+    WHERE s.lead_image_url IS NOT NULL
+      AND s.last_updated_at > now() - make_interval(hours => ${WINDOW_HOURS})
+      AND NOT EXISTS (SELECT 1 FROM articles a WHERE a.story_id = s.id AND a.image_url = s.lead_image_url)`);
   return { checked: candidates.length, detached };
 }
 
