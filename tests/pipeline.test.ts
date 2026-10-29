@@ -111,4 +111,34 @@ describe("ingestion pipeline", () => {
 
     await cleanup(db);
   });
+
+  it("groups by embedding without merging related but different events", async () => {
+    const db = await getDb();
+    const { EMBED_DIMS } = schema;
+    // Unit vectors with known cosine similarities: same event ≈ 0.96, related topic = 0.82.
+    const unit = (parts: Record<number, number>) => {
+      const v = new Array<number>(EMBED_DIMS).fill(0);
+      for (const [i, x] of Object.entries(parts)) v[Number(i)] = x;
+      const n = Math.hypot(...v);
+      return v.map((x) => x / n);
+    };
+    const [hindu] = await db.select().from(schema.sources).where(eq(schema.sources.slug, "the-hindu"));
+    const [bbc] = await db.select().from(schema.sources).where(eq(schema.sources.slug, "bbc-world"));
+    const items = [
+      { source: hindu!, url: "https://www.thehindu.com/train-1", title: "High-speed trains collide near Toledo, dozens killed", v: unit({ 10: 1 }) },
+      { source: bbc!, url: "https://bbc.co.uk/train-2", title: "Spain rail crash: what we know about the Toledo collision", v: unit({ 10: 1, 11: 0.3 }) },
+      { source: bbc!, url: "https://bbc.co.uk/train-3", title: "Drone strike hits crowded railway station in Dnipro", v: unit({ 10: 0.82, 12: Math.sqrt(1 - 0.82 ** 2) }) },
+    ];
+    for (const [i, it] of items.entries()) {
+      await storeCandidates(db, it.source, [{ url: it.url, title: it.title, excerpt: "", publishedAt: hoursAgo(3 - i) }]);
+      await db.update(schema.articles).set({ embedding: it.v }).where(eq(schema.articles.url, it.url));
+    }
+
+    const c = await clusterPending(db, { useEmbeddings: true });
+    expect(c).toEqual({ attached: 1, created: 2 });
+    const rows = await db.select({ url: schema.articles.url, storyId: schema.articles.storyId }).from(schema.articles);
+    const storyOf = (url: string) => rows.find((r) => r.url === url)?.storyId;
+    expect(storyOf(items[0]!.url)).toBe(storyOf(items[1]!.url));
+    expect(storyOf(items[2]!.url)).not.toBe(storyOf(items[0]!.url));
+  });
 });

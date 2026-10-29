@@ -4,8 +4,14 @@ import { articles, stories } from "@/lib/db/schema";
 import { embed } from "@/lib/ai";
 import { shortId, slugify } from "@/lib/text";
 
-/** Cosine similarity needed to attach an article to an existing story. Tuned on real feeds; see docs/decisions.md. */
-export const EMBED_THRESHOLD = 0.8;
+/**
+ * An article joins a story when its closest member article is at least EMBED_THRESHOLD similar
+ * and the story as a whole (centroid) is at least CENTROID_THRESHOLD similar. Matching on member
+ * articles stops a growing story's centroid from drifting into generic "news"; the centroid guard
+ * stops chains of near-neighbours. Calibrated on real feeds; see docs/decisions.md.
+ */
+export const EMBED_THRESHOLD = 0.88;
+export const CENTROID_THRESHOLD = 0.84;
 /** Trigram similarity used only when no embedding provider is configured. */
 export const LEXICAL_THRESHOLD = 0.5;
 const WINDOW_HOURS = 72;
@@ -63,12 +69,20 @@ export async function clusterPending(db: Db, opts: { useEmbeddings: boolean; lim
       let match: { id: string; centroid: number[] | null; articleCount: number } | undefined;
 
       if (opts.useEmbeddings && a.embedding) {
-        const distance = cosineDistance(stories.centroid, a.embedding);
+        const memberDistance = cosineDistance(articles.embedding, a.embedding);
         const [best] = await db
-          .select({ id: stories.id, centroid: stories.centroid, articleCount: stories.articleCount, distance })
-          .from(stories)
-          .where(and(isNotNull(stories.centroid), gt(stories.lastUpdatedAt, sql`now() - make_interval(hours => ${WINDOW_HOURS})`)))
-          .orderBy(distance)
+          .select({ id: stories.id, centroid: stories.centroid, articleCount: stories.articleCount, distance: memberDistance })
+          .from(articles)
+          .innerJoin(stories, eq(stories.id, articles.storyId))
+          .where(
+            and(
+              isNotNull(articles.embedding),
+              isNotNull(stories.centroid),
+              gt(stories.lastUpdatedAt, sql`now() - make_interval(hours => ${WINDOW_HOURS})`),
+              sql`1 - (${cosineDistance(stories.centroid, a.embedding)}) >= ${CENTROID_THRESHOLD}`,
+            ),
+          )
+          .orderBy(memberDistance)
           .limit(1);
         if (best && 1 - Number(best.distance) >= EMBED_THRESHOLD) match = best;
       } else {

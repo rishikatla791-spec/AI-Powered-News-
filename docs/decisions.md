@@ -25,7 +25,9 @@ A log of choices that shaped the build, and why. Newest last.
 
 ## Pipeline thresholds
 
-- **Grouping**: cosine similarity ≥ 0.80 against stories updated in the last 72 hours, with a running-mean centroid. Lower values merged different events with shared actors (two separate RBI announcements); higher values split one event across outlets that wrote very different headlines. Without embeddings, trigram similarity ≥ 0.5 on headlines (conservative: more small stories, fewer wrong merges).
+- **Grouping**: an article joins a story (updated in the last 72 hours) when its closest member article has cosine similarity ≥ 0.88 *and* the story's running-mean centroid is ≥ 0.84. Without embeddings, trigram similarity ≥ 0.5 on headlines (conservative: more small stories, fewer wrong merges).
+  - The first production run used centroid-only matching at ≥ 0.80. With `gemini-embedding-001` (768 dims, `RETRIEVAL_DOCUMENT`), unrelated reports from the same region or beat sit at 0.75–0.85, so stories snowballed: a 151-article "Israel election" story that also held Venezuela, one story for all Indian market news, a Spain train crash that absorbed a Ukrainian station strike. Each merge pulled the centroid towards generic news, which attracted more.
+  - Replaying ~900 real articles offline: centroid ≥ 0.86 fixed the blobs; member-article ≥ 0.88 with the 0.84 centroid guard gave the tightest stories (weakest member of every top-10 story ≥ 0.91) with the same number of multi-outlet stories (64 vs 65), and it cannot drift as a story grows over days.
 - **Summaries only when 2+ outlets report a story.** A single report is shown as-is under "Just in"; summarising one source adds nothing and spends quota.
 - **Citations are validated after generation**: citation numbers outside the provided reports are dropped, and bullets left without a valid citation are removed.
 - **Ranking**: `(3·ln(1+outlets) + ln(1+reports) + 0.4·reports_in_last_3h + 0.5·has_summary) · e^(−age_hours/18)`.
