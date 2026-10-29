@@ -81,10 +81,13 @@ export async function getPersonalFeed(userId: string) {
 export async function getSettings(userId: string) {
   const db = await getDb();
   const [s] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
-  return s ?? { userId, briefEnabled: false, briefHour: 7, timezone: "Asia/Kolkata", lastBriefSentAt: null };
+  return s ?? { userId, briefEnabled: false, briefHour: 7, briefMinute: 0, timezone: "Asia/Kolkata", lastBriefSentAt: null };
 }
 
-export async function updateSettings(userId: string, patch: { briefEnabled?: boolean; briefHour?: number; timezone?: string }) {
+export async function updateSettings(
+  userId: string,
+  patch: { briefEnabled?: boolean; briefHour?: number; briefMinute?: number; timezone?: string },
+) {
   const db = await getDb();
   await db
     .insert(userSettings)

@@ -36,7 +36,7 @@ export function SettingsPanel({
   emailVerified,
   isAdmin,
 }: {
-  settings: { briefEnabled: boolean; briefHour: number; timezone: string };
+  settings: { briefEnabled: boolean; briefHour: number; briefMinute: number; timezone: string };
   follows: Follow[];
   emailAvailable: boolean;
   email: string;
@@ -173,10 +173,18 @@ export function SettingsPanel({
         <div className="mt-5 grid max-w-[520px] gap-4 sm:grid-cols-2">
           <label className="text-[0.875rem] font-medium">
             Time
-            <select value={brief.briefHour} onChange={(e) => saveBrief({ briefHour: Number(e.target.value) })} disabled={!brief.briefEnabled} className="field mt-1.5">
-              {Array.from({ length: 24 }, (_, h) => (
-                <option key={h} value={h}>
-                  {new Date(2000, 0, 1, h).toLocaleTimeString("en-IN", { hour: "numeric", hour12: true })}
+            <select
+              value={brief.briefHour * 60 + brief.briefMinute}
+              onChange={(e) => {
+                const m = Number(e.target.value);
+                void saveBrief({ briefHour: Math.floor(m / 60), briefMinute: m % 60 });
+              }}
+              disabled={!brief.briefEnabled}
+              className="field mt-1.5"
+            >
+              {Array.from({ length: 96 }, (_, i) => i * 15).map((m) => (
+                <option key={m} value={m}>
+                  {new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true })}
                 </option>
               ))}
             </select>
@@ -190,7 +198,9 @@ export function SettingsPanel({
             </select>
           </label>
         </div>
-        <p className="meta mt-3 min-h-5" aria-live="polite">{briefSaved ? "Saved" : ""}</p>
+        <p className="meta mt-3 min-h-5" aria-live="polite">
+          {brief.briefEnabled ? `Usually arrives within 15 minutes of the time you pick.${briefSaved ? " Saved." : ""}` : briefSaved ? "Saved." : ""}
+        </p>
 
         {emailAvailable && (
           <div className="mt-4 max-w-[520px] border-t border-rule pt-5">

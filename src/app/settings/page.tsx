@@ -35,7 +35,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       )}
       {brief === "off" &&<p className="mt-6 rounded-lg bg-pencil-soft px-4 py-3 text-[0.9375rem]">The daily brief is off. You won’t get any more brief emails.</p>}
       <SettingsPanel
-        settings={{ briefEnabled: res.data.settings.briefEnabled, briefHour: res.data.settings.briefHour, timezone: res.data.settings.timezone }}
+        settings={{
+          briefEnabled: res.data.settings.briefEnabled,
+          briefHour: res.data.settings.briefHour,
+          briefMinute: res.data.settings.briefMinute,
+          timezone: res.data.settings.timezone,
+        }}
         follows={res.data.state.follows}
         emailAvailable={hasEmail()}
         email={user.email}

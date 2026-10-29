@@ -1,0 +1,1 @@
+ALTER TABLE "user_settings" ADD COLUMN "brief_minute" integer DEFAULT 0 NOT NULL;

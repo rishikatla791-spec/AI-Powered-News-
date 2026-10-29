@@ -2,7 +2,7 @@ name: Daily brief
 
 on:
   schedule:
-    - cron: "2 * * * *" # hourly; each reader gets the brief at their own chosen hour
+    - cron: "1,16,31,46 * * * *" # every 15 minutes; each reader gets the brief at their own chosen time
   workflow_dispatch: {}
 
 jobs:

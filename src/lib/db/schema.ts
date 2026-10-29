@@ -240,6 +240,7 @@ export const userSettings = pgTable("user_settings", {
     .references(() => user.id, { onDelete: "cascade" }),
   briefEnabled: boolean("brief_enabled").notNull().default(false),
   briefHour: integer("brief_hour").notNull().default(7),
+  briefMinute: integer("brief_minute").notNull().default(0),
   timezone: text("timezone").notNull().default("Asia/Kolkata"),
   lastBriefSentAt: ts("last_brief_sent_at"),
 });
