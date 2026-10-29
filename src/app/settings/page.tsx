@@ -18,7 +18,7 @@ const CONFIRM_ERRORS: Record<string, string> = {
 };
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ brief?: string; error?: string }> }) {
-  const user = await getSessionUser();
+  const user = await getSessionUser({ fresh: true });
   if (!user) redirect("/sign-in?next=/settings");
   const { brief, error } = await searchParams;
   const confirmError = error ? (CONFIRM_ERRORS[error] ?? "That confirmation link didn’t work. Send yourself a new one below.") : null;

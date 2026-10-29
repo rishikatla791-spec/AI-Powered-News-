@@ -66,12 +66,16 @@ export function getAuth(): Promise<Auth> {
 
 export type SessionUser = { id: string; email: string; name: string; image?: string | null; isAdmin: boolean; emailVerified: boolean };
 
-/** The signed-in reader, or null. Never throws (anonymous reading always works). */
-export async function getSessionUser(): Promise<SessionUser | null> {
+/**
+ * The signed-in reader, or null. Never throws (anonymous reading always works).
+ * `fresh` skips the 5-minute session cookie cache: use it where a recent change matters,
+ * e.g. an address confirmed from another device.
+ */
+export async function getSessionUser(opts: { fresh?: boolean } = {}): Promise<SessionUser | null> {
   if (!hasAuth()) return null;
   try {
     const auth = await getAuth();
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await auth.api.getSession({ headers: await headers(), query: { disableCookieCache: opts.fresh } });
     if (!session) return null;
     const u = session.user;
     return {
