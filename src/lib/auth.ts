@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { getDb, schema } from "@/lib/db";
 import { adminEmails, env, hasAuth, hasGoogleAuth, siteUrl, trustedOrigins } from "@/lib/env";
 import { sendEmail } from "@/lib/email";
-import { magicLinkEmail } from "@/lib/email-templates";
+import { magicLinkEmail, passwordResetEmail } from "@/lib/email-templates";
 
 async function createAuth() {
   const db = await getDb();
@@ -18,6 +18,18 @@ async function createAuth() {
     trustedOrigins: trustedOrigins(),
     database: drizzleAdapter(db, { provider: "pg", schema, transaction: false }),
     session: { expiresIn: 60 * 60 * 24 * 30, cookieCache: { enabled: true, maxAge: 300 } },
+    emailAndPassword: {
+      enabled: true,
+      minPasswordLength: 8,
+      maxPasswordLength: 128,
+      autoSignIn: true,
+      revokeSessionsOnPasswordReset: true,
+      resetPasswordTokenExpiresIn: 60 * 30,
+      sendResetPassword: async ({ user, url }) => {
+        const { subject, html, text } = passwordResetEmail(url);
+        await sendEmail({ to: user.email, subject, html, text });
+      },
+    },
     socialProviders: hasGoogleAuth()
       ? { google: { clientId: e.GOOGLE_CLIENT_ID!, clientSecret: e.GOOGLE_CLIENT_SECRET! } }
       : undefined,

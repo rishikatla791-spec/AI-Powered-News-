@@ -26,7 +26,20 @@ export function magicLinkEmail(url: string) {
   return { subject, html, text };
 }
 
-export type BriefItem = { headline: string; slug: string; keyPoint: string | null; outletCount: number };
+export function passwordResetEmail(url: string) {
+  const subject = "Reset your Lede password";
+  const html = frame(
+    subject,
+    `<p style="font-size:17px;line-height:1.5;margin:0 0 20px">Use this link to choose a new password. It works once and expires in 30 minutes.</p>
+     <a href="${esc(url)}" style="display:inline-block;background:#1d2025;color:#f6f6f3;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Choose a new password</a>
+     <p style="font-size:13px;line-height:1.5;color:#5f646d;margin:24px 0 0">If you didn't ask for this, you can ignore this email. Your password stays the same.</p>`,
+    `Sent by Lede · <a href="${siteUrl()}/privacy" style="color:#5f646d">Privacy</a>`,
+  );
+  const text = `Choose a new password for Lede (link expires in 30 minutes):\n${url}\n\nIf you didn't ask for this, ignore this email.`;
+  return { subject, html, text };
+}
+
+export type BriefItem ={ headline: string; slug: string; keyPoint: string | null; outletCount: number };
 
 export function briefEmail(items: BriefItem[], dateLabel: string, unsubscribeUrl: string) {
   const subject = `Your Lede brief for ${dateLabel}`;
