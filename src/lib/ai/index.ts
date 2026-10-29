@@ -36,8 +36,8 @@ function groqClient() {
   return groq;
 }
 
-const geminiModel = () => env().GEMINI_MODEL ?? "gemini-2.5-flash";
-const groqModel = () => env().GROQ_MODEL ?? "llama-3.3-70b-versatile";
+const geminiModel = () => env().GEMINI_MODEL ?? "gemini-3.8-flash";
+const groqModel = () => env().GROQ_MODEL ?? "openai/gpt-oss-120b";
 const embedModel = () => env().GEMINI_EMBED_MODEL ?? "gemini-embedding-001";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -136,10 +136,12 @@ export async function generateJson<T>(opts: {
   if (attempts.length === 0) throw new AiUnavailableError("No AI provider configured");
 
   let last: unknown;
-  for (const attempt of attempts) {
+  for (const [i, attempt] of attempts.entries()) {
     try {
       return await attempt();
     } catch (err) {
+      // Log every provider failure; otherwise a retired primary model hides behind the fallback's error.
+      if (i < attempts.length - 1) console.warn(`[ai] ${opts.job}: falling back after`, (err as Error).message);
       last = err;
     }
   }
@@ -179,6 +181,7 @@ export async function* streamText(opts: {
       return { provider: "gemini", model };
     } catch (err) {
       if (!groqClient()) throw err;
+      console.warn(`[ai] ${opts.job}: falling back after`, (err as Error).message);
     }
   }
   const q = groqClient();

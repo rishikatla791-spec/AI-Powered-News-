@@ -56,61 +56,65 @@ export async function clusterPending(db: Db, opts: { useEmbeddings: boolean; lim
   let created = 0;
   const touched = new Set<string>();
 
-  for (const a of pending) {
-    let match: { id: string; centroid: number[] | null; articleCount: number } | undefined;
+  // Counts are refreshed even if the loop dies part-way (e.g. a dropped connection),
+  // otherwise attached articles never show up in outlet_count and the story is never summarised.
+  try {
+    for (const a of pending) {
+      let match: { id: string; centroid: number[] | null; articleCount: number } | undefined;
 
-    if (opts.useEmbeddings && a.embedding) {
-      const distance = cosineDistance(stories.centroid, a.embedding);
-      const [best] = await db
-        .select({ id: stories.id, centroid: stories.centroid, articleCount: stories.articleCount, distance })
-        .from(stories)
-        .where(and(isNotNull(stories.centroid), gt(stories.lastUpdatedAt, sql`now() - make_interval(hours => ${WINDOW_HOURS})`)))
-        .orderBy(distance)
-        .limit(1);
-      if (best && 1 - Number(best.distance) >= EMBED_THRESHOLD) match = best;
-    } else {
-      const similarity = sql<number>`similarity(${stories.headline}, ${a.title})`;
-      const [best] = await db
-        .select({ id: stories.id, centroid: stories.centroid, articleCount: stories.articleCount, similarity })
-        .from(stories)
-        .where(and(gt(stories.lastUpdatedAt, sql`now() - make_interval(hours => ${WINDOW_HOURS})`), sql`${stories.headline} % ${a.title}`))
-        .orderBy(desc(similarity))
-        .limit(1);
-      if (best && Number(best.similarity) >= LEXICAL_THRESHOLD) match = best;
-    }
-
-    if (match) {
-      await db.update(articles).set({ storyId: match.id }).where(eq(articles.id, a.id));
-      if (match.centroid && a.embedding) {
-        await db
-          .update(stories)
-          .set({ centroid: mean(match.centroid, match.articleCount, a.embedding) })
-          .where(eq(stories.id, match.id));
+      if (opts.useEmbeddings && a.embedding) {
+        const distance = cosineDistance(stories.centroid, a.embedding);
+        const [best] = await db
+          .select({ id: stories.id, centroid: stories.centroid, articleCount: stories.articleCount, distance })
+          .from(stories)
+          .where(and(isNotNull(stories.centroid), gt(stories.lastUpdatedAt, sql`now() - make_interval(hours => ${WINDOW_HOURS})`)))
+          .orderBy(distance)
+          .limit(1);
+        if (best && 1 - Number(best.distance) >= EMBED_THRESHOLD) match = best;
+      } else {
+        const similarity = sql<number>`similarity(${stories.headline}, ${a.title})`;
+        const [best] = await db
+          .select({ id: stories.id, centroid: stories.centroid, articleCount: stories.articleCount, similarity })
+          .from(stories)
+          .where(and(gt(stories.lastUpdatedAt, sql`now() - make_interval(hours => ${WINDOW_HOURS})`), sql`${stories.headline} % ${a.title}`))
+          .orderBy(desc(similarity))
+          .limit(1);
+        if (best && Number(best.similarity) >= LEXICAL_THRESHOLD) match = best;
       }
-      touched.add(match.id);
-      attached++;
-    } else {
-      const [story] = await db
-        .insert(stories)
-        .values({
-          slug: `${slugify(a.title, 60)}-${shortId()}`,
-          headline: a.title,
-          dek: a.excerpt,
-          topicSlug: a.topicSlug ?? "world",
-          firstSeenAt: a.publishedAt,
-          lastUpdatedAt: a.publishedAt,
-          leadImageUrl: a.imageUrl,
-          centroid: a.embedding,
-        })
-        .returning({ id: stories.id });
-      if (!story) continue;
-      await db.update(articles).set({ storyId: story.id }).where(eq(articles.id, a.id));
-      touched.add(story.id);
-      created++;
-    }
-  }
 
-  await refreshStoryCounts(db, [...touched]);
+      if (match) {
+        await db.update(articles).set({ storyId: match.id }).where(eq(articles.id, a.id));
+        if (match.centroid && a.embedding) {
+          await db
+            .update(stories)
+            .set({ centroid: mean(match.centroid, match.articleCount, a.embedding) })
+            .where(eq(stories.id, match.id));
+        }
+        touched.add(match.id);
+        attached++;
+      } else {
+        const [story] = await db
+          .insert(stories)
+          .values({
+            slug: `${slugify(a.title, 60)}-${shortId()}`,
+            headline: a.title,
+            dek: a.excerpt,
+            topicSlug: a.topicSlug ?? "world",
+            firstSeenAt: a.publishedAt,
+            lastUpdatedAt: a.publishedAt,
+            leadImageUrl: a.imageUrl,
+            centroid: a.embedding,
+          })
+          .returning({ id: stories.id });
+        if (!story) continue;
+        await db.update(articles).set({ storyId: story.id }).where(eq(articles.id, a.id));
+        touched.add(story.id);
+        created++;
+      }
+    }
+  } finally {
+    await refreshStoryCounts(db, [...touched]);
+  }
   return { attached, created };
 }
 

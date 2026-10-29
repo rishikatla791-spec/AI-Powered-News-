@@ -11,3 +11,9 @@ coverage
 screenshots
 public/_fixtures
 worker/_fixtures.local.ts
+.env*.local
+.env.production
+
+.vercel
+.env*
+!.env.example

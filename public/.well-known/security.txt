@@ -1,4 +1,4 @@
-Contact: mailto:hello@example.com
+Contact: mailto:rishikatla791@gmail.com
 Expires: 2027-10-29T00:00:00.000Z
 Preferred-Languages: en
 Canonical: https://ai-powered-news.vercel.app/.well-known/security.txt
