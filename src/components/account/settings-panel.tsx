@@ -55,7 +55,10 @@ export function SettingsPanel({
     setDelivery(
       error
         ? { state: "error", text: error.status === 429 ? "Too many attempts. Wait a minute, then try again." : "The email couldn’t be sent. Try again in a moment." }
-        : { state: "done", text: `We sent a link to ${email}. Open it to confirm your address.` },
+        : {
+            state: "done",
+            text: `Sent to ${email}. Look for “Confirm your email for Lede” from onboarding@resend.dev, and check Spam and Promotions too.`,
+          },
     );
   }
 
